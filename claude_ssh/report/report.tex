@@ -1,0 +1,1113 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{titlesec}
+\usepackage{longtable}
+
+\graphicspath{{../figures/}}
+
+\definecolor{accent}{RGB}{0,90,160}
+\definecolor{ink}{RGB}{28,28,28}
+\definecolor{theorybg}{RGB}{234,241,248}
+\color{ink}
+
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=2pt,parsep=0pt}
+\titleformat{\section}{\large\bfseries\color{accent}}{}{0pt}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{accent}}{}{0pt}{}
+\titlespacing{\section}{0pt}{4pt}{3pt}
+\titlespacing{\subsection}{0pt}{5pt}{1pt}
+\pagestyle{plain}
+\setlength{\parindent}{0pt}
+
+% ---- helpers ------------------------------------------------------------
+\newcommand{\figblock}[1]{%
+  \begin{center}\includegraphics[width=0.84\linewidth]{#1}\end{center}}
+\newcommand{\theorybox}[1]{%
+  \vspace{1pt}\noindent
+  \colorbox{theorybg}{\begin{minipage}{\dimexpr\linewidth-2\fboxsep\relax}
+  \small\textbf{\textcolor{accent}{Theory in brief.}}\ #1
+  \end{minipage}}\vspace{3pt}}
+\newcommand{\shows}{\subsection*{\textcolor{accent}{1.\ \ What the plot shows}}\small}
+\newcommand{\method}{\subsection*{\textcolor{accent}{2.\ \ Method --- how the data was obtained}}\small}
+\newcommand{\analysis}{\subsection*{\textcolor{accent}{3.\ \ Analysis, deviations and conclusion}}\small}
+
+\begin{document}
+
+% =========================================================================
+% TITLE PAGE
+% =========================================================================
+\begin{titlepage}
+\centering
+\vspace*{2.0cm}
+{\Huge\bfseries\color{accent} Robustness Analysis of the\\[6pt]
+SSH Topolectrical Circuit\par}
+\vspace{10pt}
+{\Large An independent, from-scratch reconstruction\par}
+\vspace{1.2cm}
+{\large Pristine baseline \;$\cdot$\; Single impurities \;$\cdot$\;
+Domain walls \;$\cdot$\; Monte~Carlo disorder\par}
+\vspace{1.8cm}
+
+\begin{minipage}{0.86\linewidth}
+\color{ink}\large
+This report rebuilds the SSH topolectrical-circuit robustness study
+\emph{from the ground up}. Every circuit was re-simulated and every number
+re-derived with a purpose-written nodal-admittance solver; no data from any
+previous run was reused. The circuit uses the \textbf{updated component
+values}:
+\vspace{6pt}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Intracell capacitor $C_1$ & $2.2\ \mathrm{nF}$ & series resistance $1\ \Omega$\\
+Intercell capacitor $C_2$ & $3.3\ \mathrm{nF}$ & series resistance $1\ \Omega$\\
+Grounded inductor $L$     & $2200\ \mu\mathrm{H}$ & series resistance $1\ \Omega$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{6pt}
+Every result is checked against analytic theory as it is produced, and every
+deviation from the ideal expectation is explained. The headline finding: the
+topological boundary resonance at \textbf{45.74~kHz} survives realistic
+component disorder up to $\pm10\%$ essentially intact.
+\end{minipage}
+
+\vfill
+{\large 20 May 2026\par}
+\end{titlepage}
+
+% =========================================================================
+% METHOD PAGE
+% =========================================================================
+\section*{The circuit, the method, and how it was checked}
+
+\textbf{The circuit.}
+The Su--Schrieffer--Heeger (SSH) topolectrical circuit is a chain of
+$N=8$ unit cells, giving \textbf{16 nodes}. Every node is tied to ground
+through an inductor $L$. Neighbouring nodes are linked by capacitors that
+\emph{alternate} between a small intracell value $C_1$ and a larger
+intercell value $C_2$; a grounded boundary capacitor $C_b=C_2$ closes the
+left edge, and an AC voltage source drives node~1. Because $C_1<C_2$ the
+circuit is in the \emph{topologically non-trivial} phase, which hosts a
+protected edge state --- the electrical analogue of the SSH model from
+condensed-matter physics. Technical terms are defined in the
+glossary (Appendix~C).
+
+\medskip
+\textbf{The simulation engine.}
+A from-scratch solver (\texttt{ssh\_circuit.py}) assembles the
+$16\times16$ complex nodal-admittance matrix of the circuit at each
+frequency and solves the linear system for every node voltage --- this is
+\emph{exactly} the calculation an industry SPICE \texttt{.ac} analysis
+performs, so the output is SPICE-accurate by construction while remaining
+transparent and reproducible. The assembly and solve are vectorised over
+frequency, so the Monte~Carlo of $>50{,}000$ circuits runs in about a
+minute. LTSpice netlists of the key circuits are also exported (folder
+\texttt{netlists/}) for bench reproduction.
+
+\medskip
+\textbf{The checking philosophy.}
+Every figure is cross-checked against an independent theory prediction
+\emph{as it is produced}, and every gap between simulation and the
+idealised expectation is traced to its cause. The core checks all passed:
+
+\begin{center}\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Quantity} & \textbf{Analytic theory} & \textbf{This simulation}\\
+\midrule
+TBR frequency $f_R=1/(2\pi\sqrt{L(C_1{+}C_2)})$ & $45.754$ kHz
+   & $45.742$ kHz \ (0.025\% --- finite-size)\\
+Edge-state decay length $\xi=1/\ln(C_2/C_1)$ & $2.4663$ cells
+   & $2.4656$ cells \ (0.03\%)\\
+Per-cell voltage ratio $=C_1/C_2$ & $0.66667$ & $0.66658$\\
+Resonance from Laplacian eigenvalue & $45.754$ kHz & $45.742$ kHz\\
+Impurity sign ($\delta>0 \Rightarrow f$ falls) & predicted & confirmed\\
+Monte-Carlo spread linear in $\sigma$ & ratio $=1.00$
+   & ratio $=1.01,\ 1.03$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{How to read this report.}
+The next 16 pages each carry \emph{one figure}. Below it sits a shaded
+\textbf{Theory in brief} box, then three numbered blocks: \textbf{(1)} what
+the plot shows, \textbf{(2)} how the data was obtained, and \textbf{(3)} a
+quantitative analysis that states the conclusion and explains every
+deviation from ideal behaviour. The figures move through four parts: the
+pristine baseline (Figs.~1--3), single impurities (Figs.~4--5), domain
+walls (Figs.~6--8), and the Monte~Carlo disorder study (Figs.~9--16).
+Appendix~A lists the sources, Appendix~B tabulates every numerical result
+against theory, and Appendix~C is a glossary of technical terms.
+
+% =========================================================================
+% FIGURE 1
+% =========================================================================
+\clearpage
+\section{Figure 1\quad Pristine circuit: impedance spectrum and the TBR}
+\figblock{fig01_pristine_impedance.png}
+\theorybox{Any inductor--capacitor loop ``rings'' at a resonant frequency
+$f=1/(2\pi\sqrt{LC})$. The 16-node SSH chain supports 16 such modes, whose
+frequencies cluster into two \emph{bulk bands} separated by an empty
+\emph{band gap}. Topology guarantees one extra mode \emph{inside} that
+gap --- the topological boundary resonance (TBR) --- bound to the edge of
+the chain, at $f_R=1/(2\pi\sqrt{L(C_1+C_2)})$.}
+
+\shows
+\begin{itemize}
+\item The impedance $|Z_{\rm in}|$ that the AC source ``feels'' at node~1,
+      swept from 20 to 120~kHz (linear frequency axis, logarithmic
+      impedance axis).
+\item One tall, sharp peak at \textbf{45.74~kHz} --- the TBR --- standing
+      alone in the white band gap; the smaller peaks inside the grey strips
+      are ordinary bulk resonances.
+\item The orange dashed line is the textbook prediction $f_R=45.75$~kHz.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item The 8-cell, 16-node circuit was built from scratch with the updated
+      parts ($C_1=2.2$~nF, $C_2=3.3$~nF, $L=2200\ \mu$H, every component
+      carrying $1\ \Omega$ series resistance).
+\item At each of 1600 frequencies the $16\times16$ nodal-admittance matrix
+      was assembled and solved for the node voltages; $|Z_{\rm in}|$ is the
+      source voltage divided by the source current.
+\item The peak was located with a coarse-then-fine sweep and a parabolic
+      refinement.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the simulated peak is $45.742$~kHz; the
+      textbook formula gives $45.754$~kHz; the independent eigenvalue
+      method (Fig.~3) gives $45.742$~kHz. Peak quality factor $Q=892$,
+      width only $51$~Hz. The gap runs $41.8$--$51.2$~kHz (9.4~kHz wide)
+      and the TBR sits 42\% of the way up it.
+\item \textbf{Deviation explained:} the 0.025\% gap between the simulated
+      peak and the textbook formula is \emph{not} an error. The formula
+      assumes an infinitely long chain; in a finite 8-cell chain the
+      left-edge and right-edge modes overlap by $(C_1/C_2)^8=3.9\%$, and
+      this slight hybridisation pulls the mode down by $\approx0.025\%$.
+      The eigenvalue method, which also uses the finite chain, agrees with
+      the simulation to 5~significant figures --- confirming the cause.
+\item \textbf{Qualitative:} one dominant peak in the gap, bulk peaks an
+      order of magnitude smaller; the grey/white band pattern matches SSH
+      band theory.
+\item \textbf{Conclusion:} the circuit and solver are correct, and the TBR
+      exists as a sharp, isolated, easily measurable resonance --- the
+      foundation for everything that follows.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 2
+% =========================================================================
+\clearpage
+\section{Figure 2\quad Pristine circuit: edge-state voltage profile}
+\figblock{fig02_pristine_voltage.png}
+\theorybox{An edge state is a resonance whose voltage is concentrated at one
+end of the chain and dies away \emph{geometrically} into the bulk --- by a
+fixed factor $C_1/C_2$ per unit cell. Its decay length is
+$\xi=1/\ln(C_2/C_1)$. Chiral symmetry forces the mode to live almost
+entirely on one of the two sublattices (here the odd-numbered nodes).}
+
+\shows
+\begin{itemize}
+\item The voltage at each of the 16 nodes (divided by the source voltage),
+      driven at the TBR, on a logarithmic axis.
+\item \textbf{Odd nodes} (blue): 1.0 at the driven edge, falling
+      exponentially rightwards. \textbf{Even nodes} (green): near-zero at
+      the left, rising towards the right edge --- the chain's second edge
+      state.
+\item The orange dashed line is an exponential fit to the odd nodes.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item The circuit was solved once, exactly at the TBR frequency, and the
+      magnitude of all 16 node voltages recorded.
+\item A straight line was fitted to the logarithm of the odd-node
+      voltages; its slope gives the decay length $\xi$.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the fitted decay length is $\xi=2.4656$~cells
+      against the theory $\xi=1/\ln(C_2/C_1)=2.4663$ --- a 0.03\% match.
+      The per-cell voltage ratio is $0.66658$ versus $C_1/C_2=0.66667$.
+      The exponential fit has $R^2=0.999\,999\,98$.
+\item \textbf{Qualitative:} the profile is a clean two-edge structure ---
+      odd nodes decay from the left, even nodes rise to the right ---
+      exactly the chiral fingerprint of the SSH model.
+\item \textbf{Deviations:} none beyond the fifth decimal place; the tiny
+      residual is the same finite-size hybridisation seen in Fig.~1.
+\item \textbf{Conclusion:} the TBR is a genuine, exponentially localised
+      topological edge state. This profile is the reference shape against
+      which every later disorder result is measured.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 3
+% =========================================================================
+\clearpage
+\section{Figure 3\quad Pristine resonance spectrum: the TBR isolated in the gap}
+\figblock{fig03_resonance_spectrum.png}
+\theorybox{Each resonance of the circuit corresponds to one eigenvalue
+$\mu$ of its lossless capacitance Laplacian, through
+$f=1/(2\pi\sqrt{L\mu})$. The bulk eigenvalues form two bands. The
+\emph{bulk--boundary correspondence} theorem guarantees that whenever the
+chain is in the topological phase ($C_1<C_2$) exactly \emph{one} eigenvalue
+falls inside the gap --- the TBR.}
+
+\shows
+\begin{itemize}
+\item All 16 resonance frequencies of the circuit, sorted low-to-high
+      against a mode index.
+\item Grey bands mark the two bulk bands predicted by SSH theory; the white
+      strip is the band gap.
+\item The blue star is the TBR --- alone in the gap, on the analytic
+      $f_R$ line.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item The eigenvalues $\mu$ of the lossless capacitance Laplacian $W$ were
+      computed; each gives a resonance $f=1/(2\pi\sqrt{L\mu})$.
+\item The bulk-band edges were taken from the tight-binding SSH model.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the 16 modes split as 7 in the lower band,
+      \textbf{1 in the gap}, and 8 in the upper band. The gap mode lies at
+      $45.742$~kHz, matching the impedance peak of Fig.~1 to 5~figures.
+\item \textbf{Qualitative:} this is a third, fully independent route to
+      $f_R$ (after the impedance sweep and the textbook formula) and it
+      agrees with both --- a triple cross-check that the model is sound.
+\item \textbf{Deviations:} the gap mode sits $0.025\%$ below the formula's
+      $45.754$~kHz, again the finite-size hybridisation; it is not exactly
+      mid-gap (42\% up) because the two bulk bands are not symmetric about
+      the gap centre.
+\item \textbf{Conclusion:} there is exactly one protected mode in the gap,
+      precisely as the bulk--boundary theorem requires. The width of the
+      gap is the ``armour'' that the disorder studies later test.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 4
+% =========================================================================
+\clearpage
+\section{Figure 4\quad Single impurity: TBR displacement vs.\ position and strength}
+\figblock{fig04_single_impurity_shift.png}
+\theorybox{Changing a capacitor changes the resonant frequency, because $f$
+depends on the capacitances. To \emph{first order} the shift is
+proportional to the defect strength $\delta$ and to how much of the edge
+mode sits in that cell. But $f\propto1/\sqrt{\text{capacitance}}$ is a
+\emph{curved} function, so equal $\pm\delta$ changes give slightly unequal
+shifts --- the response is not perfectly linear.}
+
+\shows
+\begin{itemize}
+\item How the TBR frequency (ratio $f_{\rm peak}/f_R$) moves when one unit
+      cell is made impure --- both its capacitors scaled by $(1+\delta)$.
+\item Solid lines: simulation for $\delta=\pm0.1,\pm0.3$ across cells
+      2--7. Dashed lines: first-order perturbation theory.
+\item Positive $\delta$ lowers the resonance, negative $\delta$ raises it;
+      the effect is largest at cell~2 and negligible by cell~7.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item For every (cell, $\delta$) pair the two capacitors of that cell were
+      rescaled, the impedance sweep re-run and the new peak extracted ---
+      24 independent simulations.
+\item The theory line is the first-order change of the Laplacian
+      eigenvalue computed from the undisturbed edge-mode shape.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the largest shifts are at cell~2 ---
+      $+2.57\%$ for $\delta=-0.3$ and $-2.40\%$ for $\delta=+0.3$. The
+      ``leverage'' of cell~2 over cell~7 is a factor of 51, tracking the
+      edge mode's own amplitude.
+\item \textbf{Asymmetry explained:} the $+2.57\%$ vs.\ $2.40\%$ inequality
+      (a factor 1.07) is the curvature of $f\propto1/\sqrt{\;}$: shrinking
+      a capacitor raises $f$ slightly more than enlarging it lowers $f$.
+\item \textbf{Deviation from theory:} simulation and first-order theory
+      agree to better than $0.1\%$ everywhere; the only visible gap is at
+      cell~2, $\delta=\pm0.3$, the expected onset of non-linearity for the
+      strongest single defect.
+\item \textbf{Conclusion:} a local defect shifts the TBR predictably and
+      by at most 2.6\% --- it perturbs the edge state but cannot destroy
+      it. The position dependence is a direct map of where the edge mode
+      lives.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 5
+% =========================================================================
+\clearpage
+\section{Figure 5\quad Single impurity in cell 3: voltage profile}
+\figblock{fig05_single_impurity_profile.png}
+\theorybox{The driven edge mode is pinned at node~1 and decays rightwards,
+so a defect \emph{downstream} cannot change what lies \emph{upstream} of
+it. A single-cell defect also weakly breaks chiral symmetry locally, which
+lets a little voltage leak onto the B sublattice (even nodes) that the
+pristine edge state leaves almost empty.}
+
+\shows
+\begin{itemize}
+\item The voltage profile with cell~3 impure ($\delta=\pm0.3$) versus
+      pristine. The two sublattices are drawn as \emph{separate} curves
+      (solid = A/odd, dashed = B/even) --- no zig-zag.
+\item The A-sublattice curves lie on top of each other up to the impurity,
+      then separate; the B-sublattice is lifted near the defect.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item As Figure~2, but with cell-3 capacitors rescaled; each profile is
+      read at \emph{that} circuit's own (shifted) resonance, so the
+      comparison is like-for-like.
+\item The deviation from the pristine profile was measured node by node.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} on the dominant A sublattice the upstream
+      nodes (N1, N3) change by $\le0.32\%$ --- effectively frozen ---
+      while downstream the change reaches $6.0\%$ for $\delta=+0.3$ and
+      $28.6\%$ for $\delta=-0.3$.
+\item \textbf{Asymmetry explained:} $\delta=-0.3$ reshapes the chain far
+      more than $\delta=+0.3$ because it \emph{weakens} the coupling out
+      of cell~3, partly decoupling the downstream chain; $\delta=+0.3$
+      strengthens it.
+\item \textbf{The B sublattice:} pristine even-node voltages are tiny
+      ($\le0.039$); the defect lifts them up to $0.12$ near itself --- a
+      real chiral-symmetry-breaking leak, but still far below the
+      A-sublattice values, so the edge state stays A-dominated.
+\item \textbf{Conclusion:} the impurity reshapes the chain only
+      \emph{from itself onwards}; the protected edge mode upstream is
+      untouched and the state remains edge-localized.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 6
+% =========================================================================
+\clearpage
+\section{Figure 6\quad AB impurity pair: TBR displacement vs.\ $\gamma$}
+\figblock{fig06_AB_pair_sweep.png}
+\theorybox{Two adjacent defects --- an ``AB pair'' --- change three
+capacitors at once. The resonance shift again follows
+$f\propto1/\sqrt{\mu}$ with the eigenvalue $\mu$ \emph{linear} in the
+defect strengths. A linear input through a square-root gives a
+\emph{curved} output: first-order theory is only the straight tangent
+line, exact near $\gamma=0$ and drifting away for strong defects.}
+
+\shows
+\begin{itemize}
+\item The TBR shift when an AB pair sits at cell~3, sweeping the second
+      site's strength $\gamma$ for three fixed values of the first,
+      $\delta$.
+\item Solid = simulation; dashed = first-order perturbation theory.
+      $f_{\rm peak}/f_R$ falls as $\gamma$ rises, along gently
+      \emph{curved} lines.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item An AB pair changes three capacitors (two intercell, one intracell
+      set to the average of $\delta$ and $\gamma$), per Anzurez \textit{et
+      al.}\ (2025).
+\item $\gamma$ was swept over 25 values; the simulation was also compared
+      to the \emph{exact} lossless-eigenvalue prediction.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the shift spans $3.8\%$. The
+      $\delta=0$ curve has a measured curvature of $+0.018$, and $-\gamma$
+      shifts the resonance $1.40\times$ more than $+\gamma$ --- both direct
+      consequences of the $1/\sqrt{\;}$ convexity.
+\item \textbf{Deviation from theory explained:} the simulation departs
+      from the dashed first-order line by up to $0.91\%$. This is
+      \emph{not} a simulation error: the same circuits reproduce the exact
+      lossless-eigenvalue prediction to $0.0004\%$. The gap is entirely the
+      error of \emph{linearised} theory applied to a strong, three-capacitor
+      perturbation.
+\item \textbf{Asymmetry:} the three $\delta$ curves are unequally
+      spaced --- the $\delta=-0.2$ curve sits further from $\delta=0$ than
+      $\delta=+0.2$ does, the same convexity acting on $\delta$.
+\item \textbf{Conclusion:} even a clustered two-site defect moves the TBR
+      by only a few percent; the behaviour is fully understood as a curved
+      (not linear) but smooth and monotonic response.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 7
+% =========================================================================
+\clearpage
+\section{Figure 7\quad BA impurity pair: TBR displacement vs.\ $\gamma$}
+\figblock{fig07_BA_pair_sweep.png}
+\theorybox{A BA pair is an AB pair with the two impurity sites in the
+opposite order: it changes two intracell capacitors and one intercell
+capacitor (the mirror of the AB case). The same $f\propto1/\sqrt{\mu}$
+physics applies, so the response is again curved rather than straight.}
+
+\shows
+\begin{itemize}
+\item The same experiment as Figure~6 but for a BA pair.
+\item The resonance again moves smoothly with $\gamma$, along
+      \emph{visibly curved} lines, over a noticeably \emph{narrower} range
+      than the AB pair.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item A BA pair changes three capacitors in the mirror pattern of the AB
+      pair; $\gamma$ swept as before, with first-order theory dashed and an
+      exact-eigenvalue cross-check.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{The curvature explained:} every line bows because
+      $f_{\rm peak}/f_R = 1/\sqrt{1+(\text{linear in }\gamma)}$ --- a
+      square root, not a straight line. The fitted curvature is $+0.019$,
+      slightly stronger than the AB pair's.
+\item \textbf{Quantitative:} the BA shift spans only $2.5\%$, against the
+      AB pair's $3.8\%$ --- BA disturbs the TBR less. The $-\gamma$/$+\gamma$
+      asymmetry is $1.69\times$.
+\item \textbf{Deviation from theory:} the simulation hugs first-order
+      theory far better than the AB case (max gap $0.27\%$ vs.\ $0.91\%$)
+      and reproduces the exact eigenvalue to $0.0002\%$ --- the curvature
+      is genuine physics, captured exactly by the solver.
+\item \textbf{Conclusion:} defect \emph{ordering} matters --- BA perturbs
+      the TBR roughly $1.5\times$ less than AB --- and the curved response
+      is the expected square-root law, not noise.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 8
+% =========================================================================
+\clearpage
+\section{Figure 8\quad Domain wall: voltage profiles for AB and BA pairs}
+\figblock{fig08_domain_wall_profile.png}
+\theorybox{An impurity pair locally reverses the chain's strong/weak bond
+pattern --- a \emph{domain wall}. In the SSH model a domain wall binds a
+localised mid-gap state (a ``soliton''). In the circuit this appears as
+voltage piling up on the normally-empty B sublattice near the pair.}
+
+\shows
+\begin{itemize}
+\item Voltage profiles for a strong AB pair and a strong BA pair
+      ($\delta=\gamma=0.3$) versus pristine, sublattices drawn separately.
+\item The B sublattice (dashed) is lifted dramatically near the defect ---
+      voltage accumulates where the pristine chain had almost none.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item The AB and BA circuits were built and solved at their own
+      resonances; the evenness of each profile was scored with an
+      inverse-participation-ratio (IPR) over the even nodes.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the pristine B sublattice peaks at only
+      $0.039$; the AB and BA pairs lift it to $0.16$ --- a fourfold
+      pile-up of charge around the defect, the circuit signature of the
+      bound domain-wall state.
+\item \textbf{AB vs.\ BA:} the even-node IPR is $0.57$ for AB but only
+      $0.38$ for BA --- BA spreads the domain-wall charge far more evenly,
+      confirming the published expectation.
+\item \textbf{Qualitative:} the A sublattice keeps its overall exponential
+      shape; the new physics is entirely on the B sublattice, exactly as
+      a chiral-symmetry-breaking domain wall predicts.
+\item \textbf{Conclusion:} an impurity pair behaves as a controllable
+      domain wall that binds extra charge --- the circuit analogue of the
+      SSH soliton --- and its shape can be tuned by the defect ordering.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 9
+% =========================================================================
+\clearpage
+\section{Figure 9\quad Monte Carlo: TBR frequency distribution vs.\ disorder}
+\figblock{fig09_mc_fpeak_hist.png}
+\theorybox{Real capacitors differ from their nominal value by a
+manufacturing tolerance. Modelling each capacitor as
+nominal$\,\times(1+\varepsilon)$ with $\varepsilon$ a random Gaussian of
+width $\sigma$, and repeating thousands of times, turns the single TBR into
+a \emph{distribution}. A topologically protected mode should broaden but
+never vanish.}
+
+\shows
+\begin{itemize}
+\item The spread of the TBR frequency across \textbf{8000 random circuits}
+      at each of three disorder levels, $\sigma=1\%,5\%,10\%$.
+\item At $1\%$ a tight spike; at $10\%$ a much broader but still
+      \emph{single} peak, centred on the pristine value.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item In each circuit every capacitor was independently jittered by a
+      Gaussian of width $\sigma$; the TBR of each of the 24{,}000 circuits
+      was extracted and binned.
+\item Each realisation uses a fixed random seed, so the run is exactly
+      reproducible.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the distribution full-width grows
+      $0.24\to1.20\to2.45$~kHz as $\sigma$ goes $1\to5\to10\%$ --- roughly
+      proportional to $\sigma$ (analysed in Fig.~10).
+\item \textbf{Qualitative:} the peak stays single and symmetric at every
+      level; it never collapses, splits, or develops a second peak ---
+      all of which would signal destruction of the edge mode.
+\item \textbf{Deviations:} none qualitative; $10\%$ disorder is a
+      quantitative broadening, not a breakdown.
+\item \textbf{Conclusion:} the TBR persists as a clear, identifiable
+      resonance at every realistic component tolerance --- the first
+      direct evidence of topological robustness.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 10
+% =========================================================================
+\clearpage
+\section{Figure 10\quad Monte Carlo: TBR frequency --- mean and spread vs.\ $\sigma$}
+\figblock{fig10_mc_fpeak_vs_sigma.png}
+\theorybox{To first order a random capacitor change shifts $f$ up or down
+with equal chance, so the ensemble mean should stay at $f_R$ and the spread
+should grow $\propto\sigma$. A small \emph{upward} bias is nonetheless
+expected: $f\propto1/\sqrt{\mu}$ is a convex function, and the average of a
+convex function exceeds the function of the average (Jensen's inequality).}
+
+\shows
+\begin{itemize}
+\item A condensed view of the Figure-9 data: the ensemble mean TBR
+      frequency (point) with an error bar of $\pm1$ standard deviation.
+\item The red dashed line is the pristine resonance.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item For each $\sigma$ the mean and standard deviation were taken over the
+      8000 measured frequencies; the error bar is that standard deviation,
+      the genuine physical spread of the ensemble.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the spread grows almost perfectly linearly ---
+      $0.10\to0.51\to1.04$~kHz, i.e.\ $1.01\times$ and $1.03\times$ the
+      linear expectation at $5\%$ and $10\%$.
+\item \textbf{The bias explained:} the mean is not exactly on the pristine
+      line --- it drifts up by $+0.003\%$, $+0.09\%$, $+0.34\%$ at
+      $\sigma=1,5,10\%$. This is the predicted Jensen / square-root
+      convexity effect: it grows like $\sigma^2$ (note $0.34/0.09\approx4$
+      for a doubling of $\sigma$), confirming the explanation.
+\item \textbf{Conclusion:} disorder adds \emph{scatter}, and only a tiny,
+      fully-understood second-order \emph{bias}; the resonance is not
+      systematically destabilised. Even the worst single circuit out of
+      8000 stayed within $-15\%/+12\%$ of $f_R$.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 11
+% =========================================================================
+\clearpage
+\section{Figure 11\quad Monte Carlo: peak impedance vs.\ disorder}
+\figblock{fig11_mc_zpeak_vs_sigma.png}
+\theorybox{The peak impedance is largest when every component sits at its
+matched nominal value. \emph{Any} disorder --- a capacitor too big
+\emph{or} too small --- detunes that match, and detuning can only lower the
+peak. So the mean peak height should drift \emph{down}, by an amount that
+grows quadratically ($\propto\sigma^2$) with the disorder.}
+
+\shows
+\begin{itemize}
+\item The height of the resonance peak, $|Z|_{\rm peak}$, as an ensemble
+      mean with a $\pm1$ s.d.\ error bar at each $\sigma$.
+\item The mean stays nearly flat; the spread grows with $\sigma$.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item For each of the 24{,}000 disordered circuits the peak impedance was
+      recorded alongside the peak frequency; the ensemble mean and standard
+      deviation are plotted.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the mean peak height is
+      $146.3\to146.2\to145.0\to141.0$~k$\Omega$ for
+      $\sigma=0,1,5,10\%$ --- a fall of only $3.6\%$ at the worst case.
+\item \textbf{The bias explained:} the mean drifts \emph{down} (unlike the
+      frequency, which drifts up), by $-0.04\%,-0.91\%,-3.63\%$. The
+      $\sigma^2$ scaling is clear --- a $2\times$ rise in $\sigma$
+      from $5\%$ to $10\%$ gives a $\approx4\times$ larger drop --- exactly
+      the detuning argument above.
+\item \textbf{Qualitative:} a tall peak means a strong edge mode still
+      coupled cleanly to the probe; if disorder were hybridising the edge
+      state into the bulk, the height would collapse, not merely dip 4\%.
+\item \textbf{Conclusion:} the resonance keeps its \emph{strength}, not
+      just its position; the small, $\sigma^2$ loss of height is the
+      expected detuning effect and nothing more.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 12
+% =========================================================================
+\clearpage
+\section{Figure 12\quad Monte Carlo: edge-state localization (IPR) vs.\ disorder}
+\figblock{fig12_mc_ipr_hist.png}
+\theorybox{The inverse participation ratio (IPR) is one number that
+measures how concentrated a voltage profile is: high means localized, low
+means spread out (the fully-delocalized value here is $1/15=0.067$).
+Capacitor disorder perturbs only the \emph{couplings} of the chain and
+keeps it bipartite, so the chiral-protected edge mode cannot delocalize.}
+
+\shows
+\begin{itemize}
+\item The distribution of the IPR over the 8000 circuits at each $\sigma$.
+\item Pristine IPR $=0.385$ (black dashed); the fully-delocalized
+      reference $1/15=0.067$ (pink dotted) sits far to the left.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item For every disordered circuit the voltage profile was measured and its
+      IPR computed over nodes 2--16 (the driven node is excluded so the
+      metric is not trivially dominated by it).
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the mean IPR falls only slightly with
+      disorder --- $0.385\to0.384\to0.376\to0.355$ for
+      $\sigma=0,1,5,10\%$ --- staying roughly \emph{five times} the
+      delocalized value even at $10\%$.
+\item \textbf{Qualitative:} the distributions broaden but remain clustered
+      well to the right; not one of the 8000 worst-case circuits comes
+      anywhere near the delocalized line.
+\item \textbf{Deviation:} the modest downward drift of the mean is the
+      same mild ``bulk admixture'' that lengthens $\xi$ in Fig.~13 --- a
+      small reshaping, not delocalization.
+\item \textbf{Conclusion:} this is the direct numerical proof of
+      topological protection --- capacitor disorder cannot delocalize the
+      chiral-protected edge mode.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 13
+% =========================================================================
+\clearpage
+\section{Figure 13\quad Monte Carlo: edge-state decay length vs.\ disorder}
+\figblock{fig13_mc_xi_vs_sigma.png}
+\theorybox{The decay length $\xi$ is the edge state expressed as a physical
+size --- how many cells the voltage takes to fall by a factor $e$.
+Disorder mixes a little delocalized \emph{bulk} character into the mode,
+which lengthens the average decay, so a small \emph{positive} bias in
+$\langle\xi\rangle$ is expected. True delocalization would instead send
+$\xi\to\infty$.}
+
+\shows
+\begin{itemize}
+\item The decay length $\xi$ as an ensemble mean with $\pm1$ s.d.\ error
+      bars.
+\item The orange dashed line is the theory value $\xi=2.466$ cells.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item For each disordered circuit a straight line was fitted to the
+      logarithm of the odd-node voltages; its slope gives $\xi$. The
+      ensemble mean and standard deviation are plotted.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the mean $\xi$ rises only gently ---
+      $2.466\to2.468\to2.512\to2.686$ cells for $\sigma=0,1,5,10\%$,
+      a $+8.9\%$ change at the worst case.
+\item \textbf{The bias explained:} the upward drift is the expected
+      bulk-admixture effect, and it grows faster than linearly ($+1.9\%$ at
+      $5\%$, $+8.9\%$ at $10\%$) because disorder mixes in bulk character
+      quadratically. The growing error bars reflect the harder
+      log-linear fit on noisier profiles.
+\item \textbf{Deviation:} $\xi$ never trends towards infinity --- the
+      unmistakable signature that the mode stays localized.
+\item \textbf{Conclusion:} the edge state keeps its characteristic size
+      to within $\sim9\%$ even at $10\%$ disorder; together with Fig.~12 it
+      shows the mode keeps both its shape and its length scale.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 14
+% =========================================================================
+\clearpage
+\section{Figure 14\quad Monte Carlo: edge-state voltage envelope}
+\figblock{fig14_mc_voltage_envelope.png}
+\theorybox{If the edge state is genuinely protected, every disordered copy
+of it should still be the same exponentially-decaying shape, give or take a
+spread. Plotting the ensemble \emph{median} profile together with a
+\emph{percentile band} shows that spread directly.}
+
+\shows
+\begin{itemize}
+\item The A-sublattice (odd-node) voltage profile under disorder: the
+      pristine profile (black), the ensemble median at each $\sigma$
+      (coloured lines) and the 5\%--95\% spread band (shaded).
+\item The medians sit essentially on the pristine line; the bands widen
+      with $\sigma$.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item The 8000 measured profiles at each $\sigma$ were stacked; the median
+      and the 5th/95th percentiles were taken node by node.
+\item Only the dominant A sublattice is shown, so the exponential decay is
+      seen cleanly without the odd/even zig-zag.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the three median curves are
+      indistinguishable from the pristine exponential. At a mid-chain node
+      the $10\%$ band reaches only $\pm50\%$ in voltage --- under a factor
+      of two even in the worst case.
+\item \textbf{Qualitative:} the characteristic straight-line (exponential)
+      decay survives intact; disorder blurs the profile but never erases
+      its shape.
+\item \textbf{Deviations:} the band is slightly wider towards the far
+      (right) end of the chain, where the small voltages are more
+      sensitive --- expected, and still bounded.
+\item \textbf{Conclusion:} the \emph{whole} edge-state profile, not just
+      its summary numbers, is preserved under realistic disorder.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 15
+% =========================================================================
+\clearpage
+\section{Figure 15\quad Chiral-symmetry test: capacitor vs.\ inductor disorder}
+\figblock{fig15_mc_chiral_control.png}
+\theorybox{The SSH edge state is protected by \emph{chiral symmetry}.
+Capacitor disorder perturbs the off-diagonal \emph{couplings} of the
+circuit Laplacian and largely respects that symmetry; inductor disorder
+perturbs the on-site (diagonal) terms and \emph{breaks} it. So inductor
+disorder should destabilise the resonance more.}
+
+\shows
+\begin{itemize}
+\item How much the resonance \emph{spreads} (standard deviation of
+      $f_{\rm peak}$, as a percentage of $f_R$) for disorder on the
+      \emph{capacitors} (blue) versus the \emph{inductors} (pink).
+\item Both grow linearly with $\sigma$; the inductor line is clearly
+      steeper.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item The Monte~Carlo was run twice --- once jittering only capacitors,
+      once only inductors --- 48{,}000 circuits in total.
+\item Error bars are bootstrap estimates of the uncertainty on each
+      spread.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} at $\sigma=10\%$ the frequency spread is
+      $2.27\%$ for capacitor disorder but $3.13\%$ for inductor disorder
+      --- inductor disorder is $1.38\times$ more destabilising. The mean
+      IPR at $10\%$ is also lower for inductor disorder ($0.338$ vs.\
+      $0.355$).
+\item \textbf{Why the contrast is moderate, not extreme:} capacitor
+      disorder is not \emph{perfectly} chiral-symmetric --- it also
+      slightly disturbs each node's total grounding capacitance (a
+      diagonal term). So both disorder types break the symmetry somewhat;
+      the inductor case simply does so more directly. The measured
+      $1.38\times$ is the honest size of that effect for an 8-cell chain.
+\item \textbf{Conclusion:} the disorder that breaks chiral symmetry is
+      measurably more damaging --- isolating chiral symmetry as the
+      \emph{reason} the edge state is robust. Practically: inductor quality
+      matters more than capacitor quality.
+\end{itemize}
+
+% =========================================================================
+% FIGURE 16
+% =========================================================================
+\clearpage
+\section{Figure 16\quad Topological vs.\ trivial circuit at 10\% disorder}
+\figblock{fig16_mc_topo_vs_trivial.png}
+\theorybox{Swapping $C_1$ and $C_2$ moves the circuit into the
+topologically \emph{trivial} phase, which has no protected gap state. The
+bulk--boundary theorem then predicts \emph{no} robust resonance inside the
+gap --- the gap should stay empty whether or not disorder is present.}
+
+\shows
+\begin{itemize}
+\item Median impedance spectra under $10\%$ disorder for the topological
+      circuit ($C_1<C_2$, blue) and the trivial circuit ($C_1>C_2$,
+      green); dotted lines are the clean spectra, faint bands the spread.
+\item At the gap centre (dashed line) the topological circuit shows a
+      \emph{peak}; the trivial circuit shows a \emph{dip}.
+\end{itemize}
+
+\method
+\begin{itemize}
+\item For each phase, 400 disordered circuits were simulated across the
+      full band and the median spectrum extracted.
+\end{itemize}
+
+\analysis
+\begin{itemize}
+\item \textbf{Quantitative:} the clean topological peak is
+      $146$~k$\Omega$; the clean trivial circuit reaches only
+      $48$~k$\Omega$ and not in the gap --- a factor of 3 smaller. Under
+      $10\%$ disorder the topological median still bumps \emph{up} at the
+      gap centre while the trivial median dips \emph{down}.
+\item \textbf{Qualitative:} the trivial circuit's resonances are ordinary
+      bulk modes with nothing protecting them; the gap is simply empty.
+\item \textbf{Deviations:} the wide percentile bands are expected --- with
+      $10\%$ disorder individual bulk resonances wander, so a
+      \emph{point-by-point} band is broad; the \emph{median} still carries
+      the message cleanly.
+\item \textbf{Conclusion:} the robust gap resonance exists \emph{only} in
+      the topological phase. This is the decisive control: the robustness
+      documented in Figs.~9--15 is genuinely topological in origin, not a
+      generic property of any LC ladder.
+\end{itemize}
+
+% =========================================================================
+% SUMMARY
+% =========================================================================
+\clearpage
+\section*{Summary}
+
+The topological boundary resonance of the updated SSH circuit
+($C_1=2.2$~nF, $C_2=3.3$~nF, $L=2200\ \mu$H, $1\ \Omega$ series resistance
+throughout) sits at \textbf{45.74~kHz}, agreeing with analytic theory to
+0.025\% --- the residual being a fully-explained finite-size effect. It
+survives a single impurity (shift $\le2.6\%$), a clustered AB/BA impurity
+pair (a few percent), and random $\pm10\%$ disorder on every capacitor: the
+resonance stays centred on its pristine value, its peak height falls only
+$3.6\%$, and the edge state keeps both its shape and its decay length.
+Every deviation from ideal behaviour was traced to its cause --- finite
+chain length, the $1/\sqrt{\;}$ convexity of the resonance formula, and the
+expected second-order biases of a random ensemble. Inductor disorder, which
+breaks chiral symmetry, is measurably more damaging than capacitor
+disorder, and the trivial-phase control shows the robust gap resonance
+exists \emph{only} in the topological phase. Every theory check passed.
+
+% =========================================================================
+% APPENDIX A -- SOURCES
+% =========================================================================
+\clearpage
+\section*{Appendix A\quad Sources}
+\small
+The physics and circuit conventions reconstructed here are drawn from the
+following sources.
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
+\item \textbf{Project brief:} \texttt{robustness\_manual.md} --- the
+      step-by-step manual specifying the four-part study, the circuit
+      topology and the component conventions reproduced in this report.
+\item \textbf{Su, W.\,P., Schrieffer, J.\,R.\ \& Heeger, A.\,J.} (1979).
+      Solitons in polyacetylene. \textit{Physical Review Letters}
+      \textbf{42}, 1698 --- the original SSH model and its domain-wall
+      soliton.
+\item \textbf{Lee, C.\,H.\ \textit{et al.}} (2018). Topolectrical
+      Circuits. \textit{Communications Physics} \textbf{1}, 39 --- the
+      mapping of the SSH model onto an LC circuit and the grounded-Laplacian
+      formalism.
+\item \textbf{Anzurez, J.\ \textit{et al.}} (2025). Edge state robustness
+      in the SSH model with impurities: topoelectric circuit simulations
+      toward topological heterostructures. \textit{Physica B} \textbf{715},
+      417609 --- the single-impurity and AB/BA domain-wall conventions
+      (Parts 2--3).
+\item \textbf{Asb\'oth, J.\,K., Oroszl\'any, L.\ \& P\'alyi, A.} (2016).
+      \textit{A Short Course on Topological Insulators}. Lecture Notes in
+      Physics \textbf{919}, Springer --- chiral symmetry, the bulk--boundary
+      correspondence and the localization length.
+\item \textbf{Anderson, P.\,W.} (1958). Absence of diffusion in certain
+      random lattices. \textit{Physical Review} \textbf{109}, 1492 --- the
+      theory of disorder-induced localization underpinning Part~4.
+\item \textbf{Numerical tools:} the nodal-admittance method is standard
+      linear circuit analysis; the solver here uses NumPy (Harris
+      \textit{et al.}, \textit{Nature} \textbf{585}, 357, 2020) and
+      Matplotlib (Hunter, \textit{Comput.\ Sci.\ Eng.}\ \textbf{9}, 90,
+      2007). Figure colours follow the colour-blind-safe Okabe--Ito
+      palette.
+\end{enumerate}
+
+% =========================================================================
+% APPENDIX B -- RESULTS TABLE
+% =========================================================================
+\clearpage
+\section*{Appendix B\quad Table of numerical results vs.\ theory}
+\small
+All values produced by this study's solver. ``Theory'' is the independent
+analytic expectation; the final column is the agreement or the explanation
+of any deviation.
+
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{p{4.9cm}p{3.0cm}p{3.0cm}p{4.4cm}}
+\toprule
+\textbf{Quantity} & \textbf{Simulation} & \textbf{Theory} &
+\textbf{Agreement / note}\\
+\midrule
+\endhead
+\multicolumn{4}{l}{\textit{Part 1 --- pristine baseline}}\\
+TBR frequency $f_R$        & $45.742$ kHz & $45.754$ kHz & 0.025\% (finite-size hybridisation)\\
+TBR from Laplacian eigenvalue & $45.742$ kHz & $45.754$ kHz & matches simulation exactly\\
+Peak impedance $|Z|_{\rm peak}$ & $146.3$ k$\Omega$ & --- & finite (set by $1\ \Omega$ losses)\\
+Quality factor $Q$        & $892$ & --- & width $51$ Hz\\
+Band gap                  & $41.8$--$51.2$ kHz & --- & 9.4 kHz wide\\
+Decay length $\xi$        & $2.4656$ cells & $2.4663$ cells & 0.03\%\\
+Per-cell voltage ratio    & $0.66658$ & $0.66667$ & 0.01\%\\
+Exponential-fit quality   & $R^2=0.99999998$ & $R^2=1$ & near-perfect\\
+Pristine IPR (N2--N16)    & $0.385$ & --- & vs.\ delocalized $0.067$\\
+\midrule
+\multicolumn{4}{l}{\textit{Part 2 --- single impurity}}\\
+Largest shift, cell 2 $\delta=-0.3$ & $+2.57\%$ & --- & raises $f$ (smaller $C$)\\
+Largest shift, cell 2 $\delta=+0.3$ & $-2.40\%$ & --- & lowers $f$ (larger $C$)\\
+$\pm\delta$ asymmetry      & $\times1.07$ & $\times1$ (1st order) & $1/\sqrt{\;}$ convexity\\
+Cell 2 / cell 7 leverage  & $\times51$ & --- & edge-mode amplitude\\
+A-sublattice upstream change & $\le0.32\%$ & $0$ & defect cannot act upstream\\
+\midrule
+\multicolumn{4}{l}{\textit{Part 3 --- domain walls}}\\
+AB pair shift span        & $3.80\%$ & --- & three capacitors changed\\
+BA pair shift span        & $2.47\%$ & --- & BA disturbs TBR less\\
+$f$-vs-$\gamma$ curvature (AB) & $+0.018$ & $0$ (1st order) & $1/\sqrt{\;}$ convexity\\
+Deviation: sim vs.\ exact eigenvalue & $<0.001\%$ & --- & solver is exact\\
+Deviation: sim vs.\ 1st-order (AB) & up to $0.91\%$ & --- & linearised-theory error\\
+Domain-wall even-node IPR & AB $0.57$ / BA $0.38$ & --- & BA more uniform\\
+\midrule
+\multicolumn{4}{l}{\textit{Part 4 --- Monte Carlo ($M=8000$ per $\sigma$)}}\\
+$\langle f\rangle$ at $\sigma=10\%$ & $45.898$ kHz & $45.742$ kHz & $+0.34\%$ bias (Jensen, $\propto\sigma^2$)\\
+$f$ spread at $\sigma=1/5/10\%$ & $0.10/0.51/1.04$ kHz & $\propto\sigma$ & ratio $1.01,\ 1.03$\\
+$\langle|Z|_{\rm peak}\rangle$ at $10\%$ & $141.0$ k$\Omega$ & $146.3$ k$\Omega$ & $-3.6\%$ bias (detuning, $\propto\sigma^2$)\\
+$\langle$IPR$\rangle$ at $10\%$ & $0.355$ & $0.385$ & stays $5\times$ delocalized value\\
+$\langle\xi\rangle$ at $10\%$ & $2.686$ cells & $2.466$ cells & $+8.9\%$ (bulk admixture)\\
+Chiral test: $f$ spread at $10\%$ & cap $2.27\%$ / ind $3.13\%$ & ind $>$ cap & ind $\times1.38$ (chiral-breaking)\\
+Trivial-phase clean peak  & $48$ k$\Omega$ & no gap mode & vs.\ topological $146$ k$\Omega$\\
+\bottomrule
+\end{longtable}
+
+% =========================================================================
+% APPENDIX C -- GLOSSARY
+% =========================================================================
+\clearpage
+\section*{Appendix C\quad Glossary}
+\small
+Plain-language definitions of the technical terms used in this report.
+
+\begin{description}[leftmargin=0pt,itemsep=3pt,style=unboxed]
+\item[SSH model] The Su--Schrieffer--Heeger model: a one-dimensional chain
+  with alternating ``strong'' and ``weak'' links. It is the simplest model
+  with a topological edge state.
+\item[Topolectrical circuit] An electronic circuit (inductors and
+  capacitors) wired so that its equations are mathematically identical to a
+  quantum model --- here the SSH model. It lets a quantum effect be
+  measured on a bench.
+\item[Unit cell] The repeating building block of the chain. This circuit
+  has 8 unit cells, each containing 2 nodes.
+\item[Node] A junction in the circuit where components meet. The chain has
+  16 nodes; node voltages are what the simulation solves for.
+\item[Intracell / intercell capacitor] $C_1$ links the two nodes
+  \emph{within} a unit cell; $C_2$ links \emph{neighbouring} cells. Here
+  $C_1<C_2$, which makes the circuit topological.
+\item[Resonance / resonant frequency] A frequency at which a circuit
+  responds very strongly. An LC loop resonates at $f=1/(2\pi\sqrt{LC})$.
+\item[Topological boundary resonance (TBR)] The special resonance of this
+  circuit that lives at the chain's edge and inside the band gap. It is the
+  electrical version of the SSH topological edge state.
+\item[Edge state] A resonance whose voltage is concentrated at the end
+  (edge) of the chain and decays into the interior, instead of being spread
+  evenly.
+\item[Bulk / bulk mode / bulk band] ``Bulk'' means the interior of the
+  chain. Bulk modes are ordinary resonances spread across the whole chain;
+  their frequencies group into two continuous \emph{bulk bands}.
+\item[Band gap] The frequency window between the two bulk bands, where no
+  bulk mode exists. The TBR lives alone here.
+\item[Topological vs.\ trivial phase] Two regimes of the circuit. The
+  topological phase ($C_1<C_2$) has a protected edge state; the trivial
+  phase ($C_1>C_2$) does not. Swapping the two capacitors switches between
+  them.
+\item[Chiral symmetry] A mathematical symmetry of the SSH model (the two
+  sublattices are interchangeable in a specific sense). It is what
+  \emph{protects} the edge state; breaking it makes the state fragile.
+\item[Sublattice (A / B)] The chain's nodes split into two interleaved
+  groups --- odd nodes (A) and even nodes (B). The edge state lives almost
+  entirely on one of them.
+\item[Bulk--boundary correspondence] The theorem stating that a
+  topological bulk (here $C_1<C_2$) \emph{must} produce a protected edge
+  state --- one mode in the gap.
+\item[Domain wall / soliton] A point where the chain's strong/weak bond
+  pattern reverses. It binds an extra localized state, called a soliton in
+  the original SSH model.
+\item[AB / BA pair] Two impurities placed on adjacent sites; ``AB'' and
+  ``BA'' are the two possible orderings, which behave differently.
+\item[Impedance / input impedance] The ratio of voltage to current ---
+  how strongly a circuit ``resists'' an AC drive. It peaks sharply at a
+  resonance.
+\item[Nodal-admittance matrix] The grid of numbers ($16\times16$ here)
+  encoding how every node connects to every other. Solving a linear system
+  with this matrix gives all the node voltages --- the core of the
+  simulation.
+\item[Capacitance Laplacian (lossless)] A simplified version of the
+  circuit matrix, ignoring resistive losses. Its \emph{eigenvalues} give
+  the circuit's resonant frequencies directly --- used as an independent
+  theory check.
+\item[Eigenvalue / eigenvector] Special numbers (eigenvalues) and patterns
+  (eigenvectors) of a matrix. Each eigenvalue of the capacitance Laplacian
+  corresponds to one resonance; the eigenvector is that mode's voltage
+  shape.
+\item[Quality factor $Q$ / FWHM] $Q$ measures how sharp a resonance is
+  (high $Q$ = narrow, clean peak). FWHM (full width at half maximum) is the
+  width of the peak; $Q=f/\text{FWHM}$.
+\item[Series resistance] The small unavoidable resistance ($1\ \Omega$
+  here) inside every real capacitor and inductor. It makes resonance peaks
+  finite rather than infinitely tall.
+\item[Parabolic refinement] A trick to locate a peak more precisely than
+  the frequency grid: fit a parabola through the three points around the
+  highest sampled point and take the parabola's true maximum.
+\item[Perturbation theory / first order] An approximate method: estimate
+  how a small change shifts a result, keeping only the term proportional to
+  the change (``first order''). Accurate for small changes, less so for
+  large ones.
+\item[Inverse participation ratio (IPR)] One number measuring how
+  concentrated a voltage profile is. High IPR = localized on few nodes;
+  low IPR = spread out. The fully-spread value here is $1/15\approx0.067$.
+\item[Localization length $\xi$] The physical size of the edge state --- how
+  many unit cells the voltage takes to fall by a factor $e$ ($\approx2.7$).
+\item[Monte Carlo] A method that runs a simulation thousands of times with
+  random inputs to build up a statistical distribution of outcomes.
+\item[Gaussian disorder / $\sigma$] Each component is multiplied by a
+  random number drawn from a bell curve (Gaussian) of width $\sigma$.
+  $\sigma=10\%$ means a typical $\pm10\%$ manufacturing tolerance.
+\item[Median / percentile / 5--95\% band] The median is the middle value
+  of a sample. The 5--95\% band is the range containing the central 90\% of
+  the random circuits --- a measure of spread.
+\item[Bootstrap] A way to estimate the uncertainty of a statistic by
+  re-sampling the data many times with replacement.
+\item[Jensen's inequality / convexity] A curved (convex) function, such as
+  $1/\sqrt{x}$, has the property that its \emph{average over a spread of
+  inputs} is larger than its value at the average input. This produces the
+  small upward bias of the mean resonance frequency under disorder.
+\end{description}
+
+\end{document}

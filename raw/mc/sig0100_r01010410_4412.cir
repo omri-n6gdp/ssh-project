@@ -1,0 +1,45 @@
+* SSH topolectrical circuit - Monte Carlo template
+* N = 8 unit cells, 16 nodes, grounded boundary capacitor at node 1
+* Values match the user's actual physical circuit (not the manual's symbolic
+* values): L = 2.2 mH, C1 = 0.1 nF (intracell, v), C2 = 0.22 nF (intercell, w),
+* Cb = C2 boundary capacitor.  Expected f_R approx 189.7 kHz.
+V1 N1 0 AC 1
+* Grounded boundary capacitor (= C2)
+Cb N1 0 237.648p Rser=100
+* Inductors at every node
+L1  N1  0 2.2m Rser=10
+L2  N2  0 2.2m Rser=10
+L3  N3  0 2.2m Rser=10
+L4  N4  0 2.2m Rser=10
+L5  N5  0 2.2m Rser=10
+L6  N6  0 2.2m Rser=10
+L7  N7  0 2.2m Rser=10
+L8  N8  0 2.2m Rser=10
+L9  N9  0 2.2m Rser=10
+L10 N10 0 2.2m Rser=10
+L11 N11 0 2.2m Rser=10
+L12 N12 0 2.2m Rser=10
+L13 N13 0 2.2m Rser=10
+L14 N14 0 2.2m Rser=10
+L15 N15 0 2.2m Rser=10
+L16 N16 0 2.2m Rser=10
+* Intracell capacitors C1_k (8 of them): between nodes (2k-1, 2k)
+C1_1 N1  N2  88.5155p Rser=100
+C1_2 N3  N4  96.0392p Rser=100
+C1_3 N5  N6  103.749p Rser=100
+C1_4 N7  N8  102.965p Rser=100
+C1_5 N9  N10 105.323p Rser=100
+C1_6 N11 N12 91.4072p Rser=100
+C1_7 N13 N14 98.1341p Rser=100
+C1_8 N15 N16 110.539p Rser=100
+* Intercell capacitors C2_k (7 of them): between nodes (2k, 2k+1)
+C2_1 N2  N3  218.377p Rser=100
+C2_2 N4  N5  222.503p Rser=100
+C2_3 N6  N7  206.678p Rser=100
+C2_4 N8  N9  214.519p Rser=100
+C2_5 N10 N11 212.338p Rser=100
+C2_6 N12 N13 231.273p Rser=100
+C2_7 N14 N15 250.112p Rser=100
+.ac dec 1000 80k 400k
+.backanno
+.end
